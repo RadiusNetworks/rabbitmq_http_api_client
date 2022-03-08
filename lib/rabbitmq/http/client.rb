@@ -312,7 +312,33 @@ module RabbitMQ
         decode_resource(@connection.delete("permissions/#{encode_uri_path_segment(vhost)}/#{encode_uri_path_segment(user)}"))
       end
 
+      def list_topic_permissions(vhost = nil, query = {})
+        path = if vhost
+                 "vhosts/#{encode_uri_path_segment(vhost)}/topic-permissions"
+                else
+                  "topic-permissions"
+                end
 
+        decode_resource_collection(@connection.get(path, query))
+      end
+
+      def list_topic_permissions_of(vhost, user)
+        path = "topic-permissions/#{encode_uri_path_segment(vhost)}/#{encode_uri_path_segment(user)}"
+        decode_resource_collection(@connection.get(path))
+      end
+
+      def update_topic_permissions_of(vhost, user, attributes)
+        response = @connection.put("topic-permissions/#{encode_uri_path_segment(vhost)}/#{encode_uri_path_segment(user)}") do |req|
+          req.headers['Content-Type'] = "application/json"
+          req.body = MultiJson.dump(attributes)
+        end
+
+        nil
+      end
+
+      def delete_topic_permissions_of(vhost, user)
+        decode_resource(@connection.delete("topic-permissions/#{encode_uri_path_segment(vhost)}/#{encode_uri_path_segment(user)}"))
+      end
 
       def list_users(query = {})
         results = decode_resource_collection(@connection.get("users", query))
@@ -433,7 +459,8 @@ module RabbitMQ
         adapter = options.delete(:adapter) || Faraday.default_adapter
 
         @connection = Faraday.new(options) do |conn|
-          conn.basic_auth user, password
+          conn.request    :basic_auth, user, password
+
           conn.use        FaradayMiddleware::FollowRedirects, :limit => 3
           conn.use        Faraday::Response::RaiseError
           conn.response   :json, :content_type => /\bjson$/
